@@ -59,6 +59,7 @@ contract Auction
         Sellers[sellerNew] = seller;
     }
 
+    // SELLER functions
     // called by seller, who must provide current time based on his own machine
     
     function addItem(string  calldata description, 
@@ -74,11 +75,30 @@ contract Auction
         seller.itemIds[seller.itemIds.length] = itemIdNew;
     }
 
-    function processExpiredAuctions(uint256 currentTime) payable public
+    function getSellerBids() public view returns (Item[] memory)
+    {
+        Seller memory seller = Sellers[msg.sender];
+        Item[] memory items = new Item[](seller.itemIds.length);
+        uint iItem;
+
+        while (iItem < seller.itemIds.length)
+        {
+            items[iItem] = Items[seller.itemIds[iItem]];
+
+            iItem++;
+        }
+
+        return items;
+    }
+
+    function processExpiredAuctions(uint256 currentTime) payable public returns(Item[] memory)
     {
         Seller storage seller = Sellers[msg.sender];
 
         uint256 iItem = seller.itemIds.length;
+        uint256 amount;
+        Item[] memory items = new Item[](seller.itemIds.length);
+        uint256 iItemRemoved;
 
         do 
         {
@@ -89,13 +109,17 @@ contract Auction
             {
                 if (item.bidHighest.amount > item.initialPrice)
                 {
+                    amount += item.bidHighest.amount;
                     item.bidHighest.bidder.addressBidder.transfer(item.bidHighest.amount);
                 }
 
+                items[iItemRemoved++] = item;
                 delete Items[itemId];
                 ItemsHistory.push(item);
             }
         } while (iItem > 0);
+
+        return items;
     }
 
     // called by Bidder
