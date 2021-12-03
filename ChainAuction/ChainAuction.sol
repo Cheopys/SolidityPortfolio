@@ -59,21 +59,22 @@ contract Auction
         Sellers[sellerNew] = seller;
     }
 
-    // called by seller
+    // called by seller, who must provide current time based on his own machine
     
     function addItem(string  calldata description, 
                      uint256 price, 
+                     uint256 currentTime,
                      uint256 expiration) public 
     {
         require(expiration > block.timestamp);
 
         uint32 itemIdNew = itemCount++;
         Seller storage seller    = Sellers[msg.sender];
-        Items[itemIdNew] = Item({description: description, initialPrice: price, datePosted: block.timestamp, dateExpiration: expiration, bidHighest: Bid(Bidder(payable(msg.sender), ""), 0, 0)});
+        Items[itemIdNew] = Item({description: description, initialPrice: price, datePosted: currentTime, dateExpiration: expiration, bidHighest: Bid(Bidder(payable(msg.sender), ""), 0, 0)});
         seller.itemIds[seller.itemIds.length] = itemIdNew;
     }
 
-    function processExpiredAuctions() payable public
+    function processExpiredAuctions(uint256 currentTime) payable public
     {
         Seller storage seller = Sellers[msg.sender];
 
@@ -84,7 +85,7 @@ contract Auction
             uint32 itemId = seller.itemIds[--iItem];
             Item storage item = Items[itemId];
 
-            if (item.dateExpiration > block.timestamp)
+            if (item.dateExpiration > currentTime)
             {
                 if (item.bidHighest.amount > item.initialPrice)
                 {
