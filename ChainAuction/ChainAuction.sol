@@ -6,15 +6,16 @@ contract ChainAuction
 {
     struct Bidder
     {
-        address payable addressBidder;
         string  email;
+        Bid[]   bids;
     }
     
     struct Bid
     {
-        Bidder  bidder;
+        address addressBidder;
         uint256 amount;
         uint256 date;
+        bool    highest;
     }
 
     struct Item
@@ -41,10 +42,10 @@ contract ChainAuction
     }
 
     uint32  private itemCount;
-    mapping(uint32 => Item)    public Items;
+    mapping(uint32  => Item)   public Items;
     mapping(address => Bidder) public Bidders;
     mapping(address => Seller) public Sellers;
-    mapping(uint32 => Item)    public ItemsHistory;
+    mapping(uint32  => Item)   public ItemsHistory;
 
     // administrator
 
@@ -102,7 +103,7 @@ contract ChainAuction
 
         uint32 itemIdNew = itemCount++;
         Seller storage seller    = Sellers[msg.sender];
-        Items[itemIdNew] = Item({description: description, initialPrice: price, datePosted: currentTime, dateExpiration: expiration, bidHighest: Bid(Bidder(payable(msg.sender), ""), 0, 0)});
+        Items[itemIdNew] = Item({description: description, initialPrice: price, datePosted: currentTime, dateExpiration: expiration, bidHighest: Bid(msg.sender, 0, 0)});
         seller.itemIds[seller.itemIds.length] = itemIdNew;
     }
 
@@ -141,7 +142,7 @@ contract ChainAuction
                 if (item.bidHighest.amount > item.initialPrice)
                 {
                     amount += item.bidHighest.amount;
-                    item.bidHighest.bidder.addressBidder.transfer(item.bidHighest.amount);
+                    payable(item.bidHighest.addressBidder).transfer(item.bidHighest.amount);
                 }
 
                 moveItemToHistory(seller, itemId, item);
@@ -181,18 +182,28 @@ contract ChainAuction
     }
 
     // called by Bidder
-    
-    function placeBid(uint32 itemId, string calldata emailBidder) public payable returns (bool)
+
+    function registerBidder(string memory emailNew) public
+    {
+        Bidder storage bidder = Bidders[msg.sender];
+
+        require(bidder.bids.length == 0);
+
+        bidder.email = emailNew;
+
+        Bidders[msg.sender] = bidder;
+    }
+
+    function placeBid(uint32 itemId) public payable returns (bool)
     {
         Item storage item = Items[itemId];
         bool highest = false;
 
         if (msg.value > item.bidHighest.amount)
         {
-            item.bidHighest.bidder.addressBidder = payable(msg.sender);
-            item.bidHighest.bidder.email         = emailBidder;
-            item.bidHighest.amount = msg.value;
-            item.bidHighest.date   = block.timestamp;
+            item.bidHighest.addressBidder = msg.sender;
+            item.bidHighest.amount        = msg.value;
+            item.bidHighest.date          = block.timestamp;
 
             highest = true;
         }
