@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+    // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.0;
 
@@ -15,7 +15,6 @@ contract ChainAuction
         address addressBidder;
         uint256 amount;
         uint256 date;
-        bool    highest;
     }
 
     struct Item
@@ -29,7 +28,6 @@ contract ChainAuction
     
     struct Seller
     {
-        address  addressSeller;
         string   email;
         uint32[] itemIds;
         uint32[] itemIdsHistory;
@@ -43,9 +41,9 @@ contract ChainAuction
 
     uint32  private itemCount;
     mapping(uint32  => Item)   public Items;
+    mapping(uint32  => Item)   public ItemsHistory;
     mapping(address => Bidder) public Bidders;
     mapping(address => Seller) public Sellers;
-    mapping(uint32  => Item)   public ItemsHistory;
 
     // administrator
 
@@ -73,7 +71,6 @@ contract ChainAuction
     {
         Seller memory seller;
         
-        seller.addressSeller = sellerNew;
         seller.email = emailNew;
         
         Sellers[sellerNew] = seller;
@@ -194,7 +191,7 @@ contract ChainAuction
         Bidders[msg.sender] = bidder;
     }
 
-    function placeBid(uint32 itemId) public payable returns (bool)
+    function placeBid(uint32 itemId, uint256 currentTime) public payable returns (bool)
     {
         Item storage item = Items[itemId];
         bool highest = false;
@@ -203,7 +200,7 @@ contract ChainAuction
         {
             item.bidHighest.addressBidder = msg.sender;
             item.bidHighest.amount        = msg.value;
-            item.bidHighest.date          = block.timestamp;
+            item.bidHighest.date          = currentTime;
 
             highest = true;
         }
