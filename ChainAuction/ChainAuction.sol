@@ -28,7 +28,7 @@ contract ChainAuction
     
     struct Seller
     {
-        address payable addressSeller;
+        address  addressSeller;
         string   email;
         uint32[] itemIds;
         uint32[] itemIdsHistory;
@@ -37,7 +37,7 @@ contract ChainAuction
     struct EtherOwedToSeller
     {
         uint256 amountOwed;
-        address payable sellerOwed;
+        address sellerOwed;
     }
 
     uint32  private itemCount;
@@ -68,11 +68,11 @@ contract ChainAuction
 
     // administrator functions
 
-    function addSeller(address sellerNew, string memory emailNew) public isAdministrator
+    function addSeller(address payable sellerNew, string memory emailNew) public isAdministrator
     {
         Seller memory seller;
         
-        seller.addressSeller = address;
+        seller.addressSeller = sellerNew;
         seller.email = emailNew;
         
         Sellers[sellerNew] = seller;
@@ -84,7 +84,7 @@ contract ChainAuction
         {
             EtherOwedToSeller storage owed = etherOwed[etherOwed.length - 1];
 
-            owed.sellerOwed.transfer(owed.amountOwed);
+            payable(owed.sellerOwed).transfer(owed.amountOwed);
 
             etherOwed.pop();
         }
@@ -144,7 +144,7 @@ contract ChainAuction
                     item.bidHighest.bidder.addressBidder.transfer(item.bidHighest.amount);
                 }
 
-                moveItemToHistory(seller, item);
+                moveItemToHistory(seller, itemId, item);
             }
         } while (iItem > 0);
 
@@ -154,9 +154,11 @@ contract ChainAuction
 
         if (amount > 0)
         {
-            EtherOwedToSeller storage owed = EtherOwedToSeller({amountOwed: amount, 
-                                                                sellerOwed: payable(seller.addressSeller)});
-            etherOwed.push(EtherOwedToSeller(owed));
+            EtherOwedToSeller memory owed;
+            owed.amountOwed = amount;
+            owed.sellerOwed = msg.sender;
+
+            etherOwed.push(owed);
             emit EtherOwedSeller(amount, seller);
         }
 
@@ -165,17 +167,17 @@ contract ChainAuction
         return ItemsRemovedMemory;
     }
 
-    function moveItemToHistory(Seller storage seller, Item storage item) private
+    function moveItemToHistory(Seller storage seller, uint32 itemId, Item storage item) private
     {
         // move between state variables
 
-        ItemsHistory.push(item);
-        delete Items[item.itemId];
+        ItemsHistory[itemId] = item;
+        delete Items[itemId];
 
         // move betweeen seller variables
 
-        seller.itemIdsHistory.push(item.itemId);
-        ItemsHistory[item.itemId].push(item);
+        seller.itemIdsHistory.push(itemId);
+        ItemsHistory[itemId] = item;
     }
 
     // called by Bidder
