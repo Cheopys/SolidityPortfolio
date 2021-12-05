@@ -6,7 +6,7 @@ contract ChainBank
     mapping (address => Account) private accounts;
     
      // event for EVM logging
-    event AdminSet(address indexed adminbOld, address indexed adminNew);
+    event AdminSet(address indexed adminOld, address indexed adminNew);
     
     event AccountAdded(address addressNew);
     
@@ -75,15 +75,8 @@ contract ChainBank
    }
    
     function isStringEmpty(string memory str) private pure returns (bool)
-    {
-        bool empty = true;
-        bytes memory tempEmptyStringTest = bytes(str); // Uses memory
-        if (tempEmptyStringTest.length > 0) 
-        {
-            empty = false;
-        }
-        
-        return empty;
+    { 
+        return keccak256(bytes(str)) == keccak256(bytes(""));
     }
 
    struct Account
