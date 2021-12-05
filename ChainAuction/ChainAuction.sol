@@ -1,4 +1,4 @@
-    // SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.8.0;
 
@@ -19,11 +19,13 @@ contract ChainAuction
 
     struct Item
     {
+        address addressSeller;
         string  description;
         uint256 initialPrice;
         uint256 datePosted;
         uint256 dateExpiration;
         Bid     bidHighest;
+        Bid[]   bidsHistory;
     }
     
     struct Seller
@@ -57,7 +59,10 @@ contract ChainAuction
         administrator = msg.sender;
     }
 
+    event ItemEnded      (uint32  itemId, bool sold);
     event EtherOwedSeller(uint256 amount, Seller seller);
+    event BidBelowHighest(address addressBidder, uint256 amount,  uint256 highest, uint32 itemId);
+    event BidNewHighest  (address addressBidder,                  uint256 Highest, uint32 itemId);
 
     modifier isAdministrator() 
     {
@@ -91,7 +96,7 @@ contract ChainAuction
     // SELLER functions
     // called by seller, who must provide current time based on his own machine
     
-    function addItem(string  calldata description, 
+    function addItem(string  calldata descriptionNew, 
                      uint256 price, 
                      uint256 currentTime,
                      uint256 expiration) public 
@@ -100,11 +105,20 @@ contract ChainAuction
 
         uint32 itemIdNew = itemCount++;
         Seller storage seller    = Sellers[msg.sender];
-        Items[itemIdNew] = Item({description: description, initialPrice: price, datePosted: currentTime, dateExpiration: expiration, bidHighest: Bid(msg.sender, 0, 0)});
+        Item storage itemNew;
+
+        itemNew.addressSeller  = msg.sender;
+        itemNew.description    = descriptionNew; 
+        itemNew.initialPrice   = price;
+        itemNew.datePosted     = currentTime;
+        itemNew.dateExpiration = expiration; 
+        itemNew.bidHighest     = Bid(msg.sender, 0, 0);
+
+        Items[itemIdNew] = itemNew;
         seller.itemIds[seller.itemIds.length] = itemIdNew;
     }
 
-    function getSellerBids() public view returns (Item[] memory)
+    function getSellerItems() public view returns (Item[] memory)
     {
         Seller memory seller = Sellers[msg.sender];
         Item[] memory items = new Item[](seller.itemIds.length);
@@ -136,13 +150,18 @@ contract ChainAuction
 
             if (item.dateExpiration > currentTime)
             {
+                bool sold;
+
                 if (item.bidHighest.amount > item.initialPrice)
                 {
                     amount += item.bidHighest.amount;
                     payable(item.bidHighest.addressBidder).transfer(item.bidHighest.amount);
+                    sold = true;
                 }
 
                 moveItemToHistory(seller, itemId, item);
+
+                emit ItemEnded(itemId, sold);
             }
         } while (iItem > 0);
 
@@ -178,6 +197,20 @@ contract ChainAuction
         ItemsHistory[itemId] = item;
     }
 
+    function itemBelongsToSeller(address sellerAddress, uint32 itemId) private view returns (bool)
+    {
+        Item memory item = Items[itemId];
+
+        return item.addressSeller == sellerAddress;
+    }
+
+    function getItemData(uint32 itemId) view public returns (Item memory)
+    {
+        require(itemBelongsToSeller(msg.sender, itemId));
+
+        return Items[itemId];
+    }
+
     // called by Bidder
 
     function registerBidder(string memory emailNew) public
@@ -195,6 +228,12 @@ contract ChainAuction
     {
         Item storage item = Items[itemId];
         bool highest = false;
+        Bid  memory bid;
+        bid.addressBidder = msg.sender;
+        bid.amount        = msg.value;
+        bid.date          = currentTime;
+
+        item.bidsHistory.push(bid);
 
         if (msg.value > item.bidHighest.amount)
         {
@@ -203,6 +242,12 @@ contract ChainAuction
             item.bidHighest.date          = currentTime;
 
             highest = true;
+            emit BidNewHighest(msg.sender, msg.value, itemId);
+        }
+        else
+        {
+            emit BidBelowHighest(msg.sender, msg.value, item.bidHighest.amount, itemId);
+
         }
         
         return highest;
